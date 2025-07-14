@@ -1,0 +1,9 @@
+run_diagnostics:
+  name: "Waterguard: Run Diagnostics"
+  description: "Runs a comprehensive diagnostic test on the Waterguard hub."
+  fields:
+    device_id:
+      name: "Device ID"
+      description: "The device ID of the hub to diagnose. If omitted, the diagnostics will run on the first available hub."
+      selector:
+        text: 

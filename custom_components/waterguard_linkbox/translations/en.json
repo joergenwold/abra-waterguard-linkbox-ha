@@ -1,0 +1,84 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Waterguard Linkbox",
+        "description": "Configure your Waterguard Abra Linkbox Hub",
+        "data": {
+          "host": "IP address of your Waterguard hub (e.g., {example_host})",
+          "port": "Port of your Waterguard hub (default: {default_port})",
+          "device_id": "Device ID of your Waterguard hub (e.g., {example_device_id})"
+        },
+        "data_description": {
+          "host": "IP address of your ABRlife hub (e.g., {example_host})",
+          "port": "BACnet/IP port (default: 47808)",
+          "device_id": "BACnet device ID (e.g., {example_device_id})"
+        }
+      },
+      "discovery": {
+        "title": "Discovered Waterguard Hubs",
+        "description": "{discovery_info}",
+        "data": {
+          "discovered_hub": "Select a hub",
+          "manual_entry": "Enter manually"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the Waterguard hub. Check the IP address and ensure the device is powered on and connected to your network.",
+      "discovery_timeout": "No Waterguard hubs found on the network. Please try again or enter connection details manually.",
+      "discovery_error": "An unknown error occurred during discovery.",
+      "unknown": "An unknown error occurred."
+    },
+    "abort": {
+      "already_configured": "This Waterguard hub is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Waterguard Linkbox Options",
+        "description": "Configure polling intervals and notification settings for your Waterguard Linkbox integration",
+        "data": {
+          "scan_interval": "Polling interval (seconds)",
+          "fast_poll_interval": "Fast polling interval during alarms (seconds)",
+          "enable_notifications": "Enable alarm notifications",
+          "notification_mobile": "Enable mobile notifications",
+          "notification_persistent": "Enable persistent notifications"
+        },
+        "data_description": {
+          "scan_interval": "How often to poll the hub for data (1-300 seconds). During alarms, polling will be faster automatically.",
+          "enable_notifications": "Enable alarm notifications for water leaks and system alerts",
+          "notification_mobile": "Send notifications to mobile devices via Home Assistant app",
+          "notification_persistent": "Show persistent notifications in Home Assistant UI"
+        }
+      }
+    }
+  },
+  "services": {
+    "test_notification": {
+      "name": "Test Notification",
+      "description": "Send a test notification to verify notification settings",
+      "fields": {
+        "alarm_type": {
+          "name": "Alarm Type",
+          "description": "Type of alarm to test (water_alarm, water_leak, valve_alarm, low_battery, connection_lost)"
+        },
+        "device_id": {
+          "name": "Device ID",
+          "description": "Device ID to test (optional, will use first available if not specified)"
+        }
+      }
+    },
+    "reset_alarm": {
+      "name": "Reset Alarm",
+      "description": "Reset water alarm on the specified device",
+      "fields": {
+        "device_id": {
+          "name": "Device ID",
+          "description": "Device ID to reset (optional, will use first available if not specified)"
+        }
+      }
+    }
+  }
+} 

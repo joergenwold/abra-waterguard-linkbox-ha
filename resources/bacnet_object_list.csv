@@ -1,0 +1,16 @@
+#,Navn,Objekt-type,Enhet type,Beskrivelse
+1,Abra Linkbox+,Device,Linkbox+ (hub),"Informasjon om Linkbox+ som vendor, beskrivelse, firmware versjon osv. Firmware Revision: Versjon på BACnet stack Application Software Version: Linkbox+ FW Version"
+2,waterMonitor.X.alarm,Analog input,Linkbox+ (hub),Present value: Pågående vannalarm 1 = Alarm
+3,waterMonitor.X.alarm,Notification Class,Linkbox+ (hub),N/A: Notifikasjon for vannalarm
+4,waterMonitor.X.resetLeak,Multi State Output,Linkbox+ (hub),Present value: Avstill alarm 1= N/A 2=reset
+5,waterMonitor.X.leak1,Analog input,Linkbox+ (hub),Present value: Sensortape status 1 = Vann målt på sensortape
+6,valveMonitor.X.numValves,Multi State Input,Linkbox+ (hub),Present value: Antall ventiler tilkoblet 0=Ingen ventiler koblet til 2=1 ventil koblet til 3=2 ventiler koblet til
+7,valveMonitor.X.valveStatus1,Multi State Input,Linkbox+ (hub),Present value: Ventilstatus ventil 1 1=unknown 2=closed 3=open
+8,valveMonitor.X.valveStatus2,Multi State Input,Linkbox+ (hub),Present value: Ventilstatus ventil 2 1=unknown 2=closed 3=open
+9,valveControl.X.openClose,Multi State Output,Linkbox+ (hub),Present value: Ventilstyring 1=N/A 2=close 3=open
+10,BACnet/IP Port,Network Port,Linkbox+ (hub),Bacnet IP UDP Port: <port> default: 47808 Nettverksinfo Bdmb Broadcast Distribution Table: ip_address <IP> Port <PORT>
+11,ID.waterMonitor.X.leak1,Analog input,Water Sensor+ (Wireless),Present value: Sensor status sensorpunkt 1 1 = Vann målt på sensorpunkt 1
+12,ID.waterMonitor.X.leak2,Analog input,Water Sensor+ (Wireless),Present value: Sensor status sensorpunkt 2 1 = Vann målt på sensorpunkt 2
+13,ID.waterMonitor.X.temperature,Analog input,Water Sensor+ (Wireless),Eksempel ved temperatur 25: Temperaturføler trådløs sensor Present Value: 25
+14,ID.waterMonitor.X.humidity,Analog input,Water Sensor+ (Wireless),Eksempel ved fuktighet 57%: Fuktighetsverdi trådløs sensor Present Value: 57
+15,ID.waterMonitor.X.batteryVoltage,Analog input,Water Sensor+ (Wireless),Eksempel ved batterispenning 3.2V: Batterispenning trådløs sensor Present Value: 3.2 100%=3.3V 15%=2.2V (Batteri må skiftes senest ved 15%)
