@@ -52,21 +52,26 @@ This is a custom integration for Home Assistant to integrate with the Waterguard
 
 The integration supports both automatic discovery and manual configuration through the Home Assistant UI.
 
+### Configuration Flow
+
+
+1.  **IP Address Input**: First, you'll be asked to enter the IP address and port of your Waterguard hub.
+2.  **Device ID Discovery**: The integration will attempt to discover available device IDs for the specified IP address.
+3.  **Device ID Selection**: If device IDs are found, you can select from the discovered list or choose to enter manually.
+4.  **Manual Device ID**: If no device IDs are discovered, or if you choose manual entry, you can enter the device ID manually.
+
 ### Automatic Discovery
 
 1.  When you add the integration, it will automatically scan your local network for Waterguard hubs using a BACnet broadcast request.
 2.  If any hubs are found, they will be presented in a list showing their IP address and device ID.
-3.  Simply select your hub from the list to complete the setup.
+3.  Select your hub from the list to complete the setup.
 
 ### Manual Configuration
 
-If your hub is not discovered (e.g., it is on a different VLAN or subnet), you can configure it manually.
-
-1.  If no hubs are discovered, or if you choose to skip discovery, you can select the option to configure manually.
-2.  You will need to provide the following information:
-    -   **IP Address**: The local IP address of your Waterguard hub.
-    -   **Port**: The BACnet port (default is `47808`).
-    -   **Device ID**: The BACnet device instance ID of your hub (e.g., `2229704` or `131120`).
+If device ID discovery fails, you can still configure the integration manually by providing:
+-   **IP Address**: The local IP address of your Waterguard hub.
+-   **Port**: The BACnet port (default is `47808`).
+-   **Device ID**: The BACnet device instance ID of your hub (e.g., `2229704` or `131120`).
 
 ### Network Requirements
 -   **Direct IP Access**: For manual setup, the Home Assistant server must be able to reach the Waterguard Linkbox+ hub directly via its IP address.

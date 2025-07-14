@@ -125,8 +125,8 @@ def main():
     import sys
     
     if len(sys.argv) < 2:
-        print("Usage: python local_whois_discovery.py <target_ip>")
-        print("Example: python local_whois_discovery.py 192.168.2.251")
+        print("Usage: python discover_device_id.py <target_ip>")
+        print("Example: python discover_device_id.py 192.168.2.251")
         sys.exit(1)
     
     target_ip = sys.argv[1]

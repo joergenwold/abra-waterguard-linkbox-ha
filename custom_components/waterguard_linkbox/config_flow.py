@@ -28,14 +28,19 @@ from .const import (
     DOMAIN,
 )
 from .hub import WaterguardLinkboxHub
-from .discovery import async_discover_hubs, DiscoveryTimeout
+from .discovery import async_discover_device_ids, DiscoveryTimeout
 
 _LOGGER = logging.getLogger(__name__)
 
-STEP_USER_DATA_SCHEMA = vol.Schema(
+STEP_HOST_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_HOST): str,
         vol.Optional(CONF_PORT, default=DEFAULT_PORT): int,
+    }
+)
+
+STEP_DEVICE_ID_SCHEMA = vol.Schema(
+    {
         vol.Required(CONF_DEVICE_ID): int,
     }
 )
@@ -68,7 +73,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     
     def __init__(self):
         """Initialize the config flow."""
-        self._discovered_hubs = []
+        self._discovered_device_ids = []
+        self._host = None
+        self._port = None
 
     @staticmethod
     def async_get_options_flow(
@@ -80,85 +87,158 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the initial step."""
+        """Handle the initial step - ask for host and port."""
         errors: dict[str, str] = {}
         
         if user_input is not None:
+            self._host = user_input[CONF_HOST]
+            self._port = user_input[CONF_PORT]
+            
+            # Try to discover device IDs for this specific host
             try:
-                info = await validate_input(self.hass, user_input)
-            except CannotConnect:
-                errors["base"] = "cannot_connect"
-            except InvalidAuth:
-                errors["base"] = "invalid_auth"
+                self._discovered_device_ids = await async_discover_device_ids(
+                    self.hass, self._host, self._port
+                )
+            except DiscoveryTimeout:
+                _LOGGER.info(f"No device IDs discovered for {self._host}")
+                self._discovered_device_ids = []
             except Exception:
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
-            else:
-                # Create unique ID based on host and device ID
-                unique_id = f"{user_input[CONF_HOST]}_{user_input[CONF_DEVICE_ID]}"
-                await self.async_set_unique_id(unique_id)
-                self._abort_if_unique_id_configured()
-                
-                return self.async_create_entry(title=info["title"], data=user_input)
-
-        # Try to discover hubs on the network
-        try:
-            self._discovered_hubs = await async_discover_hubs(self.hass)
-        except DiscoveryTimeout:
-            errors["base"] = "discovery_timeout"
-        except Exception:
-            _LOGGER.exception("Unknown error during discovery")
-            errors["base"] = "discovery_error"
-        
-        if self._discovered_hubs:
-            return await self.async_step_discovery()
+                _LOGGER.exception("Error during device ID discovery")
+                self._discovered_device_ids = []
+            
+            # Move to device ID selection/input step
+            return await self.async_step_device_id()
 
         return self.async_show_form(
             step_id="user",
-            data_schema=STEP_USER_DATA_SCHEMA,
+            data_schema=STEP_HOST_SCHEMA,
             errors=errors,
             description_placeholders={
                 "default_port": DEFAULT_PORT,
                 "example_host": "192.168.1.100",
-                "example_device_id": "2229704",
             },
         )
         
-    async def async_step_discovery(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Handle discovery step. User can select a discovered hub or choose manual entry."""
+    async def async_step_device_id(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle device ID selection or manual input."""
+        errors: dict[str, str] = {}
+        
         if user_input is not None:
             if user_input.get("manual_entry"):
-                return await self.async_step_user()
-            
-            selected_host = user_input["discovered_hub"]
-            selected_hub = next((hub for hub in self._discovered_hubs if hub["host"] == selected_host), None)
-
-            if selected_hub:
+                # User chose to enter device ID manually
                 return self.async_show_form(
-                    step_id="user",
-                    data_schema=vol.Schema({
-                        vol.Required(CONF_HOST, default=selected_hub["host"]): str,
-                        vol.Optional(CONF_PORT, default=selected_hub["port"]): int,
-                        vol.Required(CONF_DEVICE_ID, default=selected_hub.get("device_id")): int,
-                    }),
+                    step_id="manual_device_id",
+                    data_schema=STEP_DEVICE_ID_SCHEMA,
+                    errors=errors,
                     description_placeholders={
-                        "default_port": selected_hub["port"],
-                        "example_host": "192.168.1.100",
                         "example_device_id": "2229704",
                     },
                 )
+            
+            # User selected a discovered device ID
+            selected_device_id = int(user_input["discovered_device_id"])
+            return await self._create_entry(selected_device_id)
 
-        # Show list of discovered hubs
-        discovered_hubs_options = {hub["host"]: f"{hub['host']}:{hub['port']}" for hub in self._discovered_hubs}
+        # Show discovered device IDs if any were found
+        if self._discovered_device_ids:
+            discovered_options = {
+                str(device_id): f"Device ID: {device_id}" 
+                for device_id in self._discovered_device_ids
+            }
+            
+            return self.async_show_form(
+                step_id="device_id",
+                data_schema=vol.Schema({
+                    vol.Required("discovered_device_id"): vol.In(discovered_options),
+                    vol.Optional("manual_entry", default=False): bool,
+                }),
+                description_placeholders={
+                    "host": self._host,
+                    "discovery_info": f"Found {len(self._discovered_device_ids)} device ID(s) for {self._host}. Select one or choose manual entry below."
+                },
+            )
+        else:
+            # No device IDs discovered, go directly to manual input
+            return self.async_show_form(
+                step_id="manual_device_id",
+                data_schema=STEP_DEVICE_ID_SCHEMA,
+                errors=errors,
+                description_placeholders={
+                    "host": self._host,
+                    "example_device_id": "2229704",
+                },
+            )
+
+    async def async_step_manual_device_id(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle manual device ID input."""
+        errors: dict[str, str] = {}
+        
+        if user_input is not None:
+            device_id = user_input[CONF_DEVICE_ID]
+            return await self._create_entry(device_id)
 
         return self.async_show_form(
-            step_id="discovery",
-            data_schema=vol.Schema({
-                vol.Required("discovered_hub"): vol.In(discovered_hubs_options),
-                vol.Optional("manual_entry", default=False): bool,
-            }),
-            description_placeholders={"discovery_info": "Select a discovered hub or choose manual entry below."},
+            step_id="manual_device_id",
+            data_schema=STEP_DEVICE_ID_SCHEMA,
+            errors=errors,
+            description_placeholders={
+                "host": self._host,
+                "example_device_id": "2229704",
+            },
         )
+
+    async def _create_entry(self, device_id: int) -> FlowResult:
+        """Create the config entry."""
+        user_input = {
+            CONF_HOST: self._host,
+            CONF_PORT: self._port,
+            CONF_DEVICE_ID: device_id,
+        }
+        
+        try:
+            info = await validate_input(self.hass, user_input)
+        except CannotConnect:
+            return self.async_show_form(
+                step_id="manual_device_id",
+                data_schema=STEP_DEVICE_ID_SCHEMA,
+                errors={"base": "cannot_connect"},
+                description_placeholders={
+                    "host": self._host,
+                    "example_device_id": "2229704",
+                },
+            )
+        except InvalidAuth:
+            return self.async_show_form(
+                step_id="manual_device_id",
+                data_schema=STEP_DEVICE_ID_SCHEMA,
+                errors={"base": "invalid_auth"},
+                description_placeholders={
+                    "host": self._host,
+                    "example_device_id": "2229704",
+                },
+            )
+        except Exception:
+            _LOGGER.exception("Unexpected exception")
+            return self.async_show_form(
+                step_id="manual_device_id",
+                data_schema=STEP_DEVICE_ID_SCHEMA,
+                errors={"base": "unknown"},
+                description_placeholders={
+                    "host": self._host,
+                    "example_device_id": "2229704",
+                },
+            )
+        
+        # Create unique ID based on host and device ID
+        unique_id = f"{self._host}_{device_id}"
+        await self.async_set_unique_id(unique_id)
+        self._abort_if_unique_id_configured()
+        
+        return self.async_create_entry(title=info["title"], data=user_input)
 
 
 class OptionsFlow(config_entries.OptionsFlow):

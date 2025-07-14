@@ -3,31 +3,40 @@
     "step": {
       "user": {
         "title": "Waterguard Linkbox",
-        "description": "Configure your Waterguard Abra Linkbox Hub",
+        "description": "Enter the IP address and port of your Waterguard hub",
         "data": {
           "host": "IP address of your Waterguard hub (e.g., {example_host})",
-          "port": "Port of your Waterguard hub (default: {default_port})",
-          "device_id": "Device ID of your Waterguard hub (e.g., {example_device_id})"
+          "port": "Port of your Waterguard hub (default: {default_port})"
         },
         "data_description": {
           "host": "IP address of your ABRlife hub (e.g., {example_host})",
-          "port": "BACnet/IP port (default: 47808)",
-          "device_id": "BACnet device ID (e.g., {example_device_id})"
+          "port": "BACnet/IP port (default: 47808)"
         }
       },
-      "discovery": {
-        "title": "Discovered Waterguard Hubs",
+      "device_id": {
+        "title": "Device ID Selection",
         "description": "{discovery_info}",
         "data": {
-          "discovered_hub": "Select a hub",
-          "manual_entry": "Enter manually"
+          "discovered_device_id": "Select a device ID",
+          "manual_entry": "Enter device ID manually"
+        }
+      },
+      "manual_device_id": {
+        "title": "Manual Device ID",
+        "description": "Enter the device ID for {host}",
+        "data": {
+          "device_id": "Device ID of your Waterguard hub (e.g., {example_device_id})"
+        },
+        "data_description": {
+          "device_id": "BACnet device ID (e.g., {example_device_id})"
         }
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect to the Waterguard hub. Check the IP address and ensure the device is powered on and connected to your network.",
-      "discovery_timeout": "No Waterguard hubs found on the network. Please try again or enter connection details manually.",
+      "cannot_connect": "Failed to connect to the Waterguard hub. Check the IP address and device ID, and ensure the device is powered on and connected to your network.",
+      "discovery_timeout": "No device IDs found for the specified host. Please try entering the device ID manually.",
       "discovery_error": "An unknown error occurred during discovery.",
+      "invalid_auth": "Invalid authentication credentials.",
       "unknown": "An unknown error occurred."
     },
     "abort": {
