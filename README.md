@@ -1,4 +1,3 @@
-
 # Abra Waterguard Linkbox+ Integration for Home Assistant
 
 This is a custom integration for Home Assistant to integrate with the Waterguard ABRA life Linkbox+ water stop system. It allows you to monitor the status of your Waterguard system, control the main valve, and receive notifications for alarms and other events.
@@ -30,6 +29,18 @@ This is a custom integration for Home Assistant to integrate with the Waterguard
 
 ## Installation
 
+### HACS (Recommended)
+1. Add this repository as a custom repository in HACS:
+   - Go to HACS > Integrations
+   - Click the three dots in the upper right corner
+   - Select "Custom repositories"
+   - Add the URL `https://github.com/joergenwold/abra-waterguard-linkbox-ha`
+   - Select "Integration" as the category
+   - Click "Add"
+2. Find and install "Abra Waterguard Linkbox+" from HACS
+3. Restart Home Assistant
+
+### Manual Installation
 1.  Copy the `custom_components/waterguard_linkbox` directory to your Home Assistant `custom_components` directory.
 2.  Restart Home Assistant.
 3.  Go to **Settings** > **Devices & Services** and click **Add Integration**.
@@ -149,4 +160,4 @@ This integration includes two helper scripts for development and debugging purpo
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
