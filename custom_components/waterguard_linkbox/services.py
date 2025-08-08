@@ -59,6 +59,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                     "device_id": coordinator.hub.device_id,
                 },
                 "data_analysis": {},
+                "recommendations": [],
                 "raw_data": coordinator.data if include_raw_data else None,
             }
             

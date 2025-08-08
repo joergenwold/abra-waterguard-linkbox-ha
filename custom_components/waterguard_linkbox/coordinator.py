@@ -17,6 +17,8 @@ from .const import (
     DEFAULT_FAST_POLL_INTERVAL,
     CONF_SCAN_INTERVAL,
     CONF_FAST_POLL_INTERVAL,
+    CONF_POLL_WIRELESS,
+    CONF_WIRELESS_POLL_INTERVAL,
     CONF_ENABLE_NOTIFICATIONS,
     DOMAIN,
     CONF_NOTIFICATION_PERSISTENT,
@@ -165,6 +167,11 @@ class WaterguardDataUpdateCoordinator(DataUpdateCoordinator):
         self._last_wireless_data: dict[str, Any] = {}
         self._previous_connected_valves = set()  # Track previously connected valve indices
         self._notified_disconnected_valves = set()  # Track which valves we've already notified about
+        self._last_update_seconds: float | None = None
+        # Wireless polling config
+        self._poll_wireless: bool = entry.options.get(CONF_POLL_WIRELESS, True)
+        self._wireless_poll_interval = timedelta(seconds=entry.options.get(CONF_WIRELESS_POLL_INTERVAL, 30))
+        self._last_wireless_poll: datetime | None = None
         
         super().__init__(
             hass,
@@ -229,16 +236,32 @@ class WaterguardDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Waterguard hub."""
         try:
-            force_wireless = not hasattr(self, '_update_count') or self._update_count < 5
+            start_time = datetime.now()
+            # Decide whether to force a wireless read this cycle
+            force_wireless = False
+            if self._poll_wireless:
+                # In alarm state: align with fast path (same cadence as hub polling)
+                if self._alarm_active:
+                    force_wireless = True
+                else:
+                    # Normal state: only once per configured interval
+                    if (self._last_wireless_poll is None) or ((datetime.now() - self._last_wireless_poll) >= self._wireless_poll_interval):
+                        force_wireless = True
             if not hasattr(self, '_update_count'):
                 self._update_count = 0
             self._update_count += 1
-            force_wireless = force_wireless or self._alarm_active
             if force_wireless:
                 _LOGGER.debug(f"Update {self._update_count} - forcing wireless sensor read (alarm_active: {self._alarm_active})")
             data = await self.hass.async_add_executor_job(
                 self.hub.get_all_status, force_wireless
             )
+            if force_wireless:
+                self._last_wireless_poll = datetime.now()
+            # Measure update duration for dynamic interval guarding
+            try:
+                self._last_update_seconds = max(0.0, (datetime.now() - start_time).total_seconds())
+            except Exception:
+                self._last_update_seconds = None
             if not data or not isinstance(data, dict):
                 _LOGGER.debug("No valid data received from hub")
                 if hasattr(self, 'data') and self.data is not None:
@@ -343,17 +366,7 @@ class WaterguardDataUpdateCoordinator(DataUpdateCoordinator):
             disconnected = self._previous_connected_valves - current_connected_valves
             for idx in disconnected:
                 if idx not in self._notified_disconnected_valves:
-                    _LOGGER.warning(f"Valve {idx} was previously connected but is now disconnected!")
-                    # Optionally: trigger notification via NotificationManager
-                    if self._notification_manager:
-                        await self._notification_manager._trigger_alarm(
-                            "valve_alarm",
-                            {
-                                "value": f"Valve {idx} disconnected",
-                                "timestamp": timestamp,
-                                "sensor": f"valve_{idx}",
-                            },
-                        )
+                    _LOGGER.debug(f"Valve {idx} transition from connected to unknown/disconnected observed; deferring to notification manager debounce")
                     self._notified_disconnected_valves.add(idx)
         # Remove from notified set if valve is reconnected
         for idx in current_connected_valves:
@@ -393,12 +406,15 @@ class WaterguardDataUpdateCoordinator(DataUpdateCoordinator):
             alarm_active = True
             _LOGGER.warning("Water detected on sensor tape: %s", leak_value)
         
-        # Wireless leak alarms
-        for sensor_key in ["leak1", "leak2"]:
-            value = wireless_data.get(sensor_key)
-            if value is not None and value >= 1.0:
-                alarm_active = True
-                _LOGGER.warning("Wireless leak detected on %s: %s", sensor_key, value)
+        # Wireless leak alarms (handle any number of leak channels: leak1, leak2, leak3, ...)
+        for sensor_key, value in wireless_data.items():
+            if isinstance(sensor_key, str) and sensor_key.startswith("leak") and value is not None:
+                try:
+                    if float(value) >= 1.0:
+                        alarm_active = True
+                        _LOGGER.warning("Wireless leak detected on %s: %s", sensor_key, value)
+                except (TypeError, ValueError):
+                    continue
         
         # Valve disconnection alarms
         num_valves = valve_data.get("num_valves")
@@ -445,19 +461,28 @@ class WaterguardDataUpdateCoordinator(DataUpdateCoordinator):
     async def _check_alarm_conditions(self, data: dict[str, Any]) -> None:
         """Check for alarm conditions and adjust polling rate."""
         alarm_active = self._determine_alarm_state(data)
-        
-        # Adjust polling rate based on alarm state
-        if alarm_active and not self._alarm_active:
-            # Switch to fast polling when alarm becomes active
-            self._alarm_active = True
-            self.update_interval = self._fast_poll_interval
-            _LOGGER.info("Alarm detected - switching to fast polling (%ds)", self.update_interval.total_seconds())
-            
-        elif not alarm_active and self._alarm_active:
-            # Switch back to normal polling when alarm clears
-            self._alarm_active = False
-            self.update_interval = self._scan_interval
-            _LOGGER.info("Alarm cleared - switching to normal polling (%ds)", self.update_interval.total_seconds())
+
+        # Base interval selection
+        base_interval = self._fast_poll_interval if alarm_active else self._scan_interval
+
+        # Dynamic guard: ensure interval is not shorter than processing time * 1.5 and at least 1s
+        processing_guard = (self._last_update_seconds or 0.0) * 1.5
+        safe_seconds = max(base_interval.total_seconds(), processing_guard, 1.0)
+        target_interval = timedelta(seconds=safe_seconds)
+
+        # Track state change for logging semantics
+        if alarm_active != self._alarm_active:
+            self._alarm_active = alarm_active
+            state_label = "fast" if alarm_active else "normal"
+            _LOGGER.info("Alarm %s - switching to %s polling (%.2fs)",
+                        "detected" if alarm_active else "cleared",
+                        state_label,
+                        safe_seconds)
+
+        # Apply interval if changed significantly (>0.2s)
+        if not self.update_interval or abs(self.update_interval.total_seconds() - safe_seconds) > 0.2:
+            self.update_interval = target_interval
+            _LOGGER.debug("Polling interval set to %.2fs (processing_guard=%.2fs)", safe_seconds, processing_guard)
     
     def get_notification_manager(self) -> Optional[NotificationManager]:
         """Get the notification manager."""

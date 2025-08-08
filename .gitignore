@@ -34,3 +34,6 @@ var/
 
 # Logs
 *.log 
+
+# folders
+waterguard_bacnet_archive/

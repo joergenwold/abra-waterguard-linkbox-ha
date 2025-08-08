@@ -64,10 +64,22 @@ async def async_setup_entry(
             mapped_key = sensor_key_mapping.get(sensor_key, sensor_key)
             entity_key = f"wireless_{mapped_key}"
             
+            # If description exists, use it; otherwise, dynamically create for additional leak channels
             if entity_key in wireless_descriptions:
                 _LOGGER.info(f"Setting up wireless binary sensor: {entity_key} (from discovered {sensor_key})")
                 description = wireless_descriptions[entity_key]
                 entities.append(WaterguardBinarySensor(coordinator, description))
+            else:
+                # Dynamically support additional leak channels: leak3, leak4, ...
+                if entity_key.startswith("wireless_leak"):
+                    _LOGGER.info(f"Dynamically adding wireless leak binary sensor: {entity_key}")
+                    from homeassistant.components.binary_sensor import BinarySensorEntityDescription, BinarySensorDeviceClass
+                    description = BinarySensorEntityDescription(
+                        key=entity_key,
+                        name=f"Waterguard Wireless Sensor {mapped_key}",
+                        device_class=BinarySensorDeviceClass.MOISTURE,
+                    )
+                    entities.append(WaterguardBinarySensor(coordinator, description))
     
     async_add_entities(entities)
 
@@ -174,7 +186,7 @@ class WaterguardBinarySensor(WaterguardEntity, BinarySensorEntity):
                     float_value = float(value)
                     
                     # Validate range to prevent false alarms from corrupted data
-                    if self.entity_description.key in ["wireless_leak1", "wireless_leak2"]:
+                    if self.entity_description.key.startswith("wireless_leak"):
                         if not (0 <= float_value <= 2):  # Reasonable range for leak sensors
                             _LOGGER.warning(f"{self.entity_description.key}: Value {float_value} outside expected range, treating as dry")
                             current_state = False

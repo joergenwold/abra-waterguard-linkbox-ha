@@ -7,7 +7,7 @@ This is a custom integration for Home Assistant to integrate with the Waterguard
 ## Features
 
 -   **Local Polling**: Communicates directly with your Waterguard Linkbox+ hub on your local network. No cloud connection is required.
--   **Real-time Monitoring**: Monitors the status of the main valve, sensor tape, and wireless sensors.
+-   **Real-time Monitoring**: Monitors the status of the main valve, sensor tape, and wireless sensors. Alerts are debounced to avoid false positives.
 -   **Valve Control**: Open and close the main water valve from Home Assistant.
 -   **Alarm Notifications**: Receive notifications for water leaks, valve disconnections, and low battery on wireless sensors.
 -   **Diagnostic Tools**: Includes a service to run diagnostics on your Waterguard system, including wireless connectivity tests.
@@ -59,6 +59,18 @@ The integration supports both automatic discovery and manual configuration throu
 2.  **Device ID Discovery**: The integration will attempt to discover available device IDs for the specified IP address.
 3.  **Device ID Selection**: If device IDs are found, you can select from the discovered list or choose to enter manually.
 4.  **Manual Device ID**: If no device IDs are discovered, or if you choose manual entry, you can enter the device ID manually.
+
+### Options (after setup)
+
+-   **Polling (Hub)**
+    -   Poll interval (normal): Default 2s (local network).
+    -   Fast poll interval (alarm): Default 1s. Automatically applied while any alarm is active.
+    -   The integration dynamically guards intervals to not exceed processing capacity.
+-   **Wireless Data Refresh**
+    -   Wireless polling: Enable/disable periodic refresh of wireless temperature/humidity/battery.
+    -   Wireless poll interval (normal): Default 30s. During an alarm, wireless data is refreshed each update.
+-   **Notifications**
+    -   Enable persistent/mobile notifications. Valve-disconnect alerts use a 1s debounce to avoid false positives.
 
 ### Automatic Discovery
 
@@ -119,7 +131,7 @@ The integration provides the following service:
 The integration can send notifications for the following events:
 
 -   **Water Alarm**: When a water leak is detected by the sensor tape or a wireless sensor.
--   **Valve Alarm**: When the main valve is disconnected from the hub.
+-   **Valve Alarm**: When the main valve is disconnected from the hub. A 1-second debounce is applied to prevent false positives from transient reads.
 -   **Low Battery**: When the battery level of a wireless sensor is low.
 -   **Connection Lost**: When the connection to the Waterguard hub is lost.
 
@@ -134,7 +146,7 @@ A: If the integration cannot find your hub, you can add it via the manual config
 A: Device IDs are typically numbers like `2229704`, `131120`, or `12345`. This ID is unique to your device on the BACnet network. If all else fails, try ID `1`
 
 **Q: I don't see wireless sensor data.**  
-A: Wireless sensors are battery-powered and sleep to conserve energy, reporting data intermittently. If data is consistently missing, use the diagnostics service to check wireless connectivity.
+A: Wireless sensors are battery-powered and sleep to conserve energy. The integration preserves last known data and polls wireless values periodically (30s by default in normal operation; every update during alarms). If data is consistently missing, use the diagnostics service to check wireless connectivity.
 
 **Q: How do I reset a water alarm?**  
 A: Use the "Reset Water Alarm" button entity created by the integration.

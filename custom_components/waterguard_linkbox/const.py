@@ -14,6 +14,8 @@ CONF_FAST_POLL_INTERVAL = "fast_poll_interval"
 CONF_ENABLE_NOTIFICATIONS = "enable_notifications"
 CONF_NOTIFICATION_MOBILE = "notification_mobile"
 CONF_NOTIFICATION_PERSISTENT = "notification_persistent"
+CONF_POLL_WIRELESS = "poll_wireless"
+CONF_WIRELESS_POLL_INTERVAL = "wireless_poll_interval"
 
 VERSION = "1"
 
@@ -22,11 +24,13 @@ FIRMWARE_VERSION = "2.314.1"
 
 # Default values
 DEFAULT_PORT = 47808
-DEFAULT_SCAN_INTERVAL = 1  # Standard polling interval in seconds
-DEFAULT_FAST_POLL_INTERVAL = 2  # Fast polling when alarm is active (seconds)
+DEFAULT_SCAN_INTERVAL = 2  # Standard polling interval in seconds (local network)
+DEFAULT_FAST_POLL_INTERVAL = 1  # Fast polling when alarm is active (seconds)
 DEFAULT_ENABLE_NOTIFICATIONS = True
 DEFAULT_NOTIFICATION_MOBILE = True
 DEFAULT_NOTIFICATION_PERSISTENT = True
+DEFAULT_POLL_WIRELESS = True  # Poll hub wireless data periodically; hub still pushes alarms
+DEFAULT_WIRELESS_POLL_INTERVAL = 30  # Seconds between wireless refresh in normal operation
 
 # Device information - Updated with correct branding
 MANUFACTURER = "Fell Tech"

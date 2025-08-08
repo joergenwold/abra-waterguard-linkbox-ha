@@ -19,12 +19,16 @@ from .const import (
     CONF_ENABLE_NOTIFICATIONS,
     CONF_NOTIFICATION_MOBILE,
     CONF_NOTIFICATION_PERSISTENT,
+    CONF_POLL_WIRELESS,
+    CONF_WIRELESS_POLL_INTERVAL,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_FAST_POLL_INTERVAL,
     DEFAULT_ENABLE_NOTIFICATIONS,
     DEFAULT_NOTIFICATION_MOBILE,
     DEFAULT_NOTIFICATION_PERSISTENT,
+    DEFAULT_POLL_WIRELESS,
+    DEFAULT_WIRELESS_POLL_INTERVAL,
     DOMAIN,
 )
 from .hub import WaterguardLinkboxHub
@@ -269,6 +273,18 @@ class OptionsFlow(config_entries.OptionsFlow):
                         CONF_FAST_POLL_INTERVAL, DEFAULT_FAST_POLL_INTERVAL
                     ),
                 ): vol.All(vol.Coerce(int), vol.Range(min=1, max=10)),
+                vol.Optional(
+                    CONF_POLL_WIRELESS,
+                    default=self.config_entry.options.get(
+                        CONF_POLL_WIRELESS, DEFAULT_POLL_WIRELESS
+                    ),
+                ): bool,
+                vol.Optional(
+                    CONF_WIRELESS_POLL_INTERVAL,
+                    default=self.config_entry.options.get(
+                        CONF_WIRELESS_POLL_INTERVAL, DEFAULT_WIRELESS_POLL_INTERVAL
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=10, max=3600)),
                 vol.Optional(
                     CONF_ENABLE_NOTIFICATIONS,
                     default=self.config_entry.options.get(

@@ -89,6 +89,8 @@ class NotificationManager:
             "email_notifications": False,
         }
         self._last_wireless_data: dict[str, Any] = {}
+        # Debounce store: when we first observed a candidate alarm condition
+        self._debounce_started: dict[str, datetime] = {}
 
     async def async_setup(self) -> None:
         """Set up notification manager."""
@@ -176,26 +178,52 @@ class NotificationManager:
         valve1_status = valve_data.get("valve_status1")
         valve2_status = valve_data.get("valve_status2")
         
-        # Check for valve disconnection based on status values
+        # Check for valve disconnection based on status values (include 1087 vendor-specific)
         valve_disconnected = False
         disconnected_valves = []
         
-        if valve1_status == 4:
+        if valve1_status in [4, 1087]:
             valve_disconnected = True
             disconnected_valves.append("valve 1")
             
-        if valve2_status == 4:
+        if valve2_status in [4, 1087]:
             valve_disconnected = True
             disconnected_valves.append("valve 2")
         
+        # Also treat whole system disconnected (319 from coordinator raw), but only if explicitly present
+        system_disconnected = (num_valves == 319)
+        if system_disconnected and "Valve system" not in disconnected_valves:
+            valve_disconnected = True
+            disconnected_valves.append("system")
+
+        # Debounce: require the condition to persist for at least 1 second to avoid false flips
+        debounce_key = "valve_alarm"
+        debounce_window = timedelta(seconds=1)
+
         if valve_disconnected:
+            # Start or check debounce window
+            start = self._debounce_started.get(debounce_key)
+            if start is None:
+                self._debounce_started[debounce_key] = current_time
+                _LOGGER.debug("Valve disconnect detected; starting debounce window")
+                return
+            if (current_time - start) < debounce_window:
+                _LOGGER.debug("Valve disconnect within debounce window; holding notification")
+                return
+            # Passed debounce: raise alarm
             disconnect_message = f"Valve(s) disconnected: {', '.join(disconnected_valves)}"
-            await self._trigger_alarm("valve_alarm", {
-                "value": disconnect_message,
-                "timestamp": current_time,
-                "sensor": "valve_system",
-            })
+            await self._trigger_alarm(
+                "valve_alarm",
+                {
+                    "value": disconnect_message,
+                    "timestamp": current_time,
+                    "sensor": "valve_system",
+                },
+            )
         else:
+            # Clear debounce and alarm when condition disappears
+            if debounce_key in self._debounce_started:
+                del self._debounce_started[debounce_key]
             await self._clear_alarm("valve_alarm")
 
     async def _check_wireless_alarms(self, wireless_data: dict[str, Any], current_time: datetime) -> None:
@@ -211,22 +239,25 @@ class NotificationManager:
         else:
             await self._clear_alarm("low_battery")
 
-        # Check wireless leak sensors
-        for i in range(1, 3):
-            leak_key = f"leak{i}"
-            leak_value = wireless_data.get(leak_key)
-            alarm_type = f"wireless_leak_{i}"
-            if leak_value is not None:
-                if leak_value >= 1.0:
+        # Check wireless leak sensors (support dynamic leak channels: leak1, leak2, leak3, ...)
+        # Preserve legacy alarm type names for leak1/leak2 (wireless_leak_1/2) for compatibility
+        for key, leak_value in wireless_data.items():
+            if isinstance(key, str) and key.startswith("leak"):
+                digits = "".join(c for c in key if c.isdigit())
+                if digits:
+                    alarm_type = f"wireless_leak_{digits}"
+                    sensor_name = f"wireless_leak_{digits}"
+                else:
+                    alarm_type = f"wireless_{key}"
+                    sensor_name = alarm_type
+                if leak_value is not None and leak_value >= 1.0:
                     await self._trigger_alarm(alarm_type, {
                         "value": leak_value,
                         "timestamp": current_time,
-                        "sensor": f"wireless_leak_sensor_{i}",
+                        "sensor": sensor_name,
                     })
                 else:
                     await self._clear_alarm(alarm_type)
-            else:
-                await self._clear_alarm(alarm_type)
 
     async def _check_connection_status(self, data: dict[str, Any], current_time: datetime) -> None:
         """Check connection status."""
@@ -305,12 +336,13 @@ class NotificationManager:
             message += f"**Time:** {alarm_data.get('timestamp', 'Unknown')}\n\n"
             message += "*Check your Waterguard system and reset the alarm if needed.*"
             
+            notification_id = NOTIFICATION_IDS.get(alarm_type, f"{DOMAIN}_{alarm_type}")
             await self.hass.async_add_executor_job(
                 create,
                 self.hass,
                 message,
                 alarm_config.get("title", "Waterguard Alert"),
-                NOTIFICATION_IDS[alarm_type]
+                notification_id
             )
 
         # Send mobile notification via notify service
