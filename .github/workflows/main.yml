@@ -1,0 +1,28 @@
+name: Tag from manifest
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Read manifest version
+        id: ver
+        run: |
+          VER=$(python -c 'import json;print(json.load(open("custom_components/waterguard_linkbox/manifest.json"))["version"])')
+          echo "ver=$VER" >> $GITHUB_OUTPUT
+      - name: Tag if missing
+        run: |
+          TAG="v${{ steps.ver.outputs.ver }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists; nothing to do."
+          else
+            git tag -a "$TAG" -m "Release $TAG"
+            git push origin "$TAG"
+          fi
