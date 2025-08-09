@@ -1,0 +1,105 @@
+name: Cleanup old releases/tags
+on:
+  schedule:
+    - cron: '0 3 * * 0'  # weekly, Sunday 03:00 UTC
+  workflow_dispatch:
+    inputs:
+      keep_count:
+        description: 'Number of latest releases to keep'
+        required: false
+        default: '5'
+      protect_pattern:
+        description: 'Protect releases whose name or body matches this regex (e.g., LTS|keep)'
+        required: false
+        default: 'LTS|keep'
+      dry_run:
+        description: 'Preview only; do not delete'
+        required: false
+        default: 'true'
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cleanup releases and tags
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const keepCount = parseInt(core.getInput('keep_count') || '5', 10);
+            const protectPattern = core.getInput('protect_pattern');
+            const dryRun = (core.getInput('dry_run') || 'true').toLowerCase() === 'true';
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // 1) List releases (newest first)
+            let releases = [];
+            let page = 1;
+            while (true) {
+              const { data } = await github.rest.repos.listReleases({ owner, repo, per_page: 100, page });
+              if (!data.length) break;
+              releases = releases.concat(data);
+              page++;
+            }
+            releases.sort((a, b) => new Date(b.published_at || b.created_at) - new Date(a.published_at || a.created_at));
+
+            core.info(`Total releases: ${releases.length}`);
+            const protectedRegex = protectPattern ? new RegExp(protectPattern, 'i') : null;
+
+            // 2) Compute keep set
+            const keep = new Set();
+            releases.slice(0, keepCount).forEach(r => keep.add(r.id));
+            if (protectedRegex) {
+              for (const r of releases) {
+                const hay = `${r.name || ''}\n${r.body || ''}`;
+                if (protectedRegex.test(hay)) keep.add(r.id);
+              }
+            }
+
+            // 3) Deletable releases (older than top N and not protected)
+            const deletable = releases.filter(r => !keep.has(r.id) && !r.draft);
+            core.info(`Keeping ${keep.size} releases; deletable: ${deletable.length}`);
+
+            for (const r of deletable) {
+              const tag = r.tag_name;
+              core.info(`${dryRun ? '[DRY-RUN] ' : ''}Delete release ${r.name || r.tag_name} (${r.id}) and tag ${tag}`);
+              if (!dryRun) {
+                // delete release
+                await github.rest.repos.deleteRelease({ owner, repo, release_id: r.id }).catch(e => core.warning(`Delete release failed: ${e.message}`));
+                // delete tag (refs/tags/<tag>)
+                if (tag) {
+                  await github.rest.git.deleteRef({ owner, repo, ref: `tags/${tag}` }).catch(e => core.warning(`Delete tag failed: ${e.message}`));
+                }
+              }
+            }
+
+            // 4) Optionally cleanup stray tags without releases (not protected & not among kept tags)
+            // Build set of kept tag names
+            const keptTagNames = new Set(releases.filter(r => keep.has(r.id)).map(r => r.tag_name).filter(Boolean));
+
+            // list tags
+            let tags = [];
+            page = 1;
+            while (true) {
+              const { data } = await github.rest.repos.listTags({ owner, repo, per_page: 100, page });
+              if (!data.length) break;
+              tags = tags.concat(data);
+              page++;
+            }
+
+            // Consider tags starting with v and not in keptTagNames; try to delete if not tied to a kept release
+            for (const t of tags) {
+              const tname = t.name;
+              if (!tname || !/^v\d+\.\d+\.\d+/.test(tname)) continue;
+              if (keptTagNames.has(tname)) continue; // preserved with a kept release
+              const msg = `${dryRun ? '[DRY-RUN] ' : ''}Delete stray tag ${tname}`;
+              core.info(msg);
+              if (!dryRun) {
+                await github.rest.git.deleteRef({ owner, repo, ref: `tags/${tname}` }).catch(e => core.warning(`Delete stray tag failed: ${e.message}`));
+              }
+            }

@@ -1,7 +1,12 @@
-name: Release on tag
 on:
-  push:
-    tags: [ 'v*' ]
+    push:
+      tags: [ 'v*' ]
+    workflow_dispatch:
+      inputs:
+        tag:
+          description: 'Tag to release (e.g., v1.2.5)'
+          required: true
+          type: string
 
 jobs:
   release:
