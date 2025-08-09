@@ -7,10 +7,10 @@ This is a custom integration for Home Assistant to integrate with the Waterguard
 ## Features
 
 -   **Local Polling**: Communicates directly with your Waterguard Linkbox+ hub on your local network. No cloud connection is required.
--   **Real-time Monitoring**: Monitors the status of the main valve, sensor tape, and wireless sensors. Alerts are debounced to avoid false positives.
+ -   **Real-time Monitoring**: Monitors the status of the main valve, sensor tape, and wireless sensors.
 -   **Valve Control**: Open and close the main water valve from Home Assistant.
--   **Alarm Notifications**: Receive notifications for water leaks, valve disconnections, and low battery on wireless sensors.
--   **Diagnostic Tools**: Includes a service to run diagnostics on your Waterguard system, including wireless connectivity tests.
+-   **Alarm Notifications**: Receive notifications for water leaks, valve disconnections, and low battery on wireless sensors. Alerts use a configurable debounce to avoid false positives.
+-   **Diagnostic Tools**: Includes a Hub Info diagnostic entity and a run_diagnostics service (with optional wireless connectivity tests).
 
 ## Integration State
 
@@ -71,6 +71,8 @@ The integration supports both automatic discovery and manual configuration throu
     -   Wireless poll interval (normal): Default 30s. During an alarm, wireless data is refreshed each update.
 -   **Notifications**
     -   Enable persistent/mobile notifications. Valve-disconnect alerts use a 1s debounce to avoid false positives.
+ -   **Debounce**
+     -   Alarm debounce (seconds): Default 1s; applies to valve and wireless leak alerts.
 
 ### Automatic Discovery
 
@@ -101,6 +103,7 @@ The integration creates the following entities:
 -   **Waterguard Valve Disconnected**: Indicates if the main valve is disconnected from the hub.
 -   **Waterguard Wireless Sensor Point 1**: Indicates if a water leak is detected by the first wireless sensor point.
 -   **Waterguard Wireless Sensor Point 2**: Indicates if a water leak is detected by the second wireless sensor point.
+ -   **Waterguard Hub Connected**: Indicates if the integration is currently connected to the hub.
 
 #### Sensors
 
@@ -110,6 +113,7 @@ The integration creates the following entities:
 -   **Waterguard Wireless Temperature**: The temperature measured by the wireless sensor.
 -   **Waterguard Wireless Humidity**: The humidity measured by the wireless sensor.
 -   **Waterguard Wireless Sensor Battery**: The battery level of the wireless sensor.
+ -   **Waterguard Hub Info** (diagnostic): Shows hub and integration details. Attributes include IP, port, device_id, integration_version, and maintainer.
 
 #### Switches
 
@@ -117,7 +121,7 @@ The integration creates the following entities:
 
 #### Buttons
 
--   **Reset Water Alarm**: Resets the water alarm after it has been triggered.
+-   **Reset Water Alarm**: Resets the water alarm after it has been triggered (stateless; attributes: `last_pressed`, `last_result`).
 
 ## Services
 
@@ -131,7 +135,7 @@ The integration provides the following service:
 The integration can send notifications for the following events:
 
 -   **Water Alarm**: When a water leak is detected by the sensor tape or a wireless sensor.
--   **Valve Alarm**: When the main valve is disconnected from the hub. A 1-second debounce is applied to prevent false positives from transient reads.
+-   **Valve Alarm**: When the main valve is disconnected from the hub. A configurable debounce (default 1s) is applied to prevent false positives from transient reads.
 -   **Low Battery**: When the battery level of a wireless sensor is low.
 -   **Connection Lost**: When the connection to the Waterguard hub is lost.
 

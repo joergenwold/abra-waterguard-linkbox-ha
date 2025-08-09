@@ -12,6 +12,7 @@ from homeassistant.util.dt import utcnow
 
 from .const import DOMAIN
 from .hub import WaterguardLinkboxHub
+from .const import CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -91,6 +92,12 @@ class NotificationManager:
         self._last_wireless_data: dict[str, Any] = {}
         # Debounce store: when we first observed a candidate alarm condition
         self._debounce_started: dict[str, datetime] = {}
+        # Allow configurable debounce via options when available
+        try:
+            entry = next(iter(hass.data.get(DOMAIN, {}).values())).config_entry  # type: ignore[attr-defined]
+            self._debounce_seconds = entry.options.get(CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS)
+        except Exception:
+            self._debounce_seconds = DEFAULT_DEBOUNCE_SECONDS
 
     async def async_setup(self) -> None:
         """Set up notification manager."""
@@ -198,7 +205,7 @@ class NotificationManager:
 
         # Debounce: require the condition to persist for at least 1 second to avoid false flips
         debounce_key = "valve_alarm"
-        debounce_window = timedelta(seconds=1)
+        debounce_window = timedelta(seconds=self._debounce_seconds)
 
         if valve_disconnected:
             # Start or check debounce window

@@ -113,6 +113,7 @@ class WaterguardBinarySensor(WaterguardEntity, BinarySensorEntity):
             "water_alarm": ("water", "alarm", "water_alarm"),
             "water_leak1": ("water", "leak1", "water_leak1"),
             "valve_disconnected": ("valve", "valve_status1", "valve_valve_status1"),
+            "hub_connected": (None, None, None),
             "wireless_leak1": ("wireless", "leak1", "wireless_leak1"),
             "wireless_leak2": ("wireless", "leak2", "wireless_leak2"),
         }
@@ -120,6 +121,9 @@ class WaterguardBinarySensor(WaterguardEntity, BinarySensorEntity):
         if self.entity_description.key in key_mapping:
             section, data_key, cache_key = key_mapping[self.entity_description.key]
             
+            if self.entity_description.key == "hub_connected":
+                return self.coordinator.last_update_success
+
             value = data.get(section, {}).get(data_key)
             
             # Fallback to cache if no current data is available

@@ -16,6 +16,7 @@ CONF_NOTIFICATION_MOBILE = "notification_mobile"
 CONF_NOTIFICATION_PERSISTENT = "notification_persistent"
 CONF_POLL_WIRELESS = "poll_wireless"
 CONF_WIRELESS_POLL_INTERVAL = "wireless_poll_interval"
+CONF_DEBOUNCE_SECONDS = "debounce_seconds"
 
 VERSION = "1"
 
@@ -31,6 +32,7 @@ DEFAULT_NOTIFICATION_MOBILE = True
 DEFAULT_NOTIFICATION_PERSISTENT = True
 DEFAULT_POLL_WIRELESS = True  # Poll hub wireless data periodically; hub still pushes alarms
 DEFAULT_WIRELESS_POLL_INTERVAL = 30  # Seconds between wireless refresh in normal operation
+DEFAULT_DEBOUNCE_SECONDS = 1
 
 # Device information - Updated with correct branding
 MANUFACTURER = "Fell Tech"
@@ -152,6 +154,11 @@ BINARY_SENSOR_DESCRIPTIONS = [
         key="wireless_leak2", 
         name="Waterguard Wireless Sensor Point 2",
         device_class=BinarySensorDeviceClass.MOISTURE,
+    ),
+    BinarySensorEntityDescription(
+        key="hub_connected",
+        name="Waterguard Hub Connected",
+        device_class=BinarySensorDeviceClass.CONNECTIVITY,
     ),
 ]
 

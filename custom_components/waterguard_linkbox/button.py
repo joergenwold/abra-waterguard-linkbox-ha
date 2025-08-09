@@ -69,6 +69,11 @@ class WaterguardResetButton(WaterguardEntity, ButtonEntity):
             )
             if success:
                 _LOGGER.info("Water alarm reset command sent successfully")
+                self._attr_extra_state_attributes = {
+                    **(self.extra_state_attributes or {}),
+                    "last_pressed": self.coordinator.hass.helpers.event.utcnow().isoformat(),
+                    "last_result": "success",
+                }
                 
                 # Force immediate refresh to get updated state
                 await self.coordinator.async_request_refresh()
@@ -79,8 +84,18 @@ class WaterguardResetButton(WaterguardEntity, ButtonEntity):
                 
             else:
                 _LOGGER.error("Failed to reset water alarm")
+                self._attr_extra_state_attributes = {
+                    **(self.extra_state_attributes or {}),
+                    "last_pressed": self.coordinator.hass.helpers.event.utcnow().isoformat(),
+                    "last_result": "error",
+                }
         except Exception as err:
             _LOGGER.error("Error resetting water alarm: %s", err)
+            self._attr_extra_state_attributes = {
+                **(self.extra_state_attributes or {}),
+                "last_pressed": self.coordinator.hass.helpers.event.utcnow().isoformat(),
+                "last_result": f"exception: {err}",
+            }
     
     @property
     def available(self) -> bool:

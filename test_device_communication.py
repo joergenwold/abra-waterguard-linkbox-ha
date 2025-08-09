@@ -7,7 +7,7 @@ import math
 import time
 
 # Device info
-DEVICE_IP = "xxx.xxx.x.xxx" # Replace with your Linkbox IP address
+DEVICE_IP = "xxx.xxx.x.x" # Replace with your Linkbox IP address
 DEVICE_PORT = 47808
 DEVICE_ID = 1 # Replace with your Linkbox ID
 LOCAL_PORT = 47809  # Can be any available UDP port

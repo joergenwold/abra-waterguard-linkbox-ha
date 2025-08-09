@@ -5,6 +5,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .coordinator import WaterguardDataUpdateCoordinator
 from .const import FIRMWARE_VERSION
+from homeassistant.helpers.device_registry import DeviceInfo
 
 
 class WaterguardEntity(CoordinatorEntity[WaterguardDataUpdateCoordinator]):
@@ -13,10 +14,13 @@ class WaterguardEntity(CoordinatorEntity[WaterguardDataUpdateCoordinator]):
     def __init__(self, coordinator: WaterguardDataUpdateCoordinator) -> None:
         """Initialize the entity."""
         super().__init__(coordinator)
-        self._attr_device_info = {
-            "identifiers": {(coordinator.domain, coordinator.hub.device_id)},
-            "name": f"Waterguard Hub ({coordinator.hub.host})",
-            "manufacturer": "Fell Tech",
-            "model": "Abra Linkbox+ / Waterguard Hub",
-            "sw_version": FIRMWARE_VERSION,
-        } 
+        self._attr_device_info = DeviceInfo(
+            identifiers={(coordinator.domain, coordinator.hub.device_id)},
+            name=f"Waterguard Hub ({coordinator.hub.host})",
+            manufacturer="Fell Tech",
+            model="Abra Linkbox+ / Waterguard Hub",
+            sw_version=FIRMWARE_VERSION,
+            configuration_url="https://github.com/joergenwold/abra-waterguard-linkbox-ha",
+            suggested_area=None,
+            hw_version=None,
+        )

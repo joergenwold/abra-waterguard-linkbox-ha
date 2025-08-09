@@ -12,6 +12,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity import EntityCategory
 
 from .const import DOMAIN, ENTITY_DESCRIPTIONS, STATE_MAPPINGS
 from .coordinator import WaterguardDataUpdateCoordinator
@@ -62,6 +63,40 @@ SENSOR_DESCRIPTIONS = [
     ),
 ]
 
+class HubInfoSensor(WaterguardEntity, SensorEntity):
+    """Diagnostic sensor exposing hub and integration info."""
+
+    def __init__(self, coordinator: WaterguardDataUpdateCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.hub.device_id}_hub_info"
+        self._attr_name = "Waterguard Hub Info"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_icon = "mdi:information-outline"
+
+    @property
+    def native_value(self) -> str | None:
+        return "online" if self.coordinator.last_update_success else "offline"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        # Try to read manifest version from the integration manifest
+        manifest_version = None
+        try:
+            from .manifest import version  # not real; fallback below
+        except Exception:
+            try:
+                import importlib.metadata as md
+                manifest_version = md.version("waterguard_linkbox")
+            except Exception:
+                manifest_version = None
+        return {
+            "ip": self.coordinator.hub.host,
+            "port": self.coordinator.hub.port,
+            "device_id": self.coordinator.hub.device_id,
+            "integration_version": manifest_version,
+            "maintainer": "@joergenwold",
+        }
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -82,6 +117,9 @@ async def async_setup_entry(
     ]
     for description in main_descriptions:
         entities.append(WaterguardSensor(coordinator, description))
+
+    # Add a diagnostic hub info sensor
+    entities.append(HubInfoSensor(coordinator))
 
     # Get descriptions for possible wireless sensors
     wireless_descriptions = {
