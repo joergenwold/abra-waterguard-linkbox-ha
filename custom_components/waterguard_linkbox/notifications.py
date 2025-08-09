@@ -182,16 +182,16 @@ class NotificationManager:
         valve_disconnected = False
         disconnected_valves = []
         
-        if valve1_status in [4, 1087]:
+        if isinstance(num_valves, (int, float)) and num_valves >= 1 and valve1_status in [4, 1087]:
             valve_disconnected = True
             disconnected_valves.append("valve 1")
             
-        if valve2_status in [4, 1087]:
+        if isinstance(num_valves, (int, float)) and num_valves >= 2 and valve2_status in [4, 1087]:
             valve_disconnected = True
             disconnected_valves.append("valve 2")
         
-        # Also treat whole system disconnected (319 from coordinator raw), but only if explicitly present
-        system_disconnected = (num_valves == 319)
+        # Also treat whole system disconnected when interpreted count is 0
+        system_disconnected = (num_valves == 0)
         if system_disconnected and "Valve system" not in disconnected_valves:
             valve_disconnected = True
             disconnected_valves.append("system")

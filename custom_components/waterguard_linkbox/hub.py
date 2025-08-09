@@ -483,25 +483,29 @@ class WaterguardLinkboxHub:
         """Read valve system status, adapting to the number of connected valves."""
         status = {}
 
-        # 1. Read the number of connected valves.
+        # 1. Read the number of connected valves (map raw codes to real counts).
         num_valves_obj = VALVE_OBJECTS["num_valves"]
         packet = self._create_read_property_request(num_valves_obj["type"], num_valves_obj["instance"])
         response = self._send_request(packet)
         
-        num_valves = 0  # Default to 0
+        num_valves = 0  # Interpreted valve count
         raw_num_valves = None
 
         if response:
             parsed_value = self._parse_value(response, num_valves_obj["type"], None, "num_valves")
             if parsed_value is not None:
                 raw_num_valves = int(parsed_value)
-                # Handle "disconnected" value 319.
+                # Map raw codes to interpreted counts:
+                # 2 -> 1 valve, 3 -> 2 valves, 319 -> 0 (system disconnected/no functional valves)
                 if raw_num_valves == 319:
-                    num_valves = 0 # No functional valves
-                    status["num_valves"] = 319 # Report the raw disconnected code
+                    num_valves = 0
+                elif raw_num_valves == 2:
+                    num_valves = 1
+                elif raw_num_valves == 3:
+                    num_valves = 2
                 else:
                     num_valves = raw_num_valves
-                    status["num_valves"] = num_valves
+                status["num_valves"] = num_valves
             else:
                 status["num_valves"] = None
         else:
@@ -517,7 +521,7 @@ class WaterguardLinkboxHub:
             status["control"] = None
 
         # 3. Read status only for the number of valves reported to be connected.
-        if num_valves >= 1:
+        if num_valves is not None and num_valves >= 1:
             obj = VALVE_OBJECTS["valve_status1"]
             packet = self._create_read_property_request(obj["type"], obj["instance"])
             response = self._send_request(packet)
@@ -525,7 +529,7 @@ class WaterguardLinkboxHub:
         else:
             status["valve_status1"] = None # Ensure key is None if no valve
 
-        if num_valves >= 2:
+        if num_valves is not None and num_valves >= 2:
             obj = VALVE_OBJECTS["valve_status2"]
             packet = self._create_read_property_request(obj["type"], obj["instance"])
             response = self._send_request(packet)
